@@ -103,6 +103,7 @@ jobs:
         with:
           login-server: https://${{ steps.acr.outputs.registry }}
           region-id: ${{ steps.acr.outputs.region }}
+          endpoint: https://cr.${{ steps.acr.outputs.region }}.aliyuncs.com
           access-key-id: ${{ secrets.ACR_ACCESS_KEY_ID }}
           access-key-secret: ${{ secrets.ACR_ACCESS_KEY_SECRET }}
 
