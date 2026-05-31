@@ -65,46 +65,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 规范化 ACR_REGISTRY，并从常见 ACR 域名格式中推断阿里云地域。
-      - name: Resolve ACR region
-        id: acr
-        shell: bash
-        run: |
-          REGISTRY="${{ secrets.ACR_REGISTRY }}"
-          REGISTRY="${REGISTRY#https://}"
-          REGISTRY="${REGISTRY#http://}"
-          REGISTRY="${REGISTRY%%/*}"
-
-          REGION="$(echo "$REGISTRY" | sed -nE 's/^registry(-[a-z0-9]+)?\.([a-z0-9-]+)\.aliyuncs\.com$/\2/p')"
-
-          if [ -z "$REGION" ]; then
-            REGION="$(echo "$REGISTRY" | sed -nE 's/^.*-registry(-[a-z0-9]+)?\.([a-z0-9-]+)\.cr\.aliyuncs\.com$/\2/p')"
-          fi
-
-          if [ -z "$REGION" ]; then
-            REGION="$(echo "$REGISTRY" | sed -nE 's/^.*\.([a-z0-9-]+)\.personal\.cr\.aliyuncs\.com$/\1/p')"
-          fi
-
-          if [ -z "$REGION" ]; then
-            REGION="$(echo "$REGISTRY" | grep -oE '(cn|us|eu|ap|me|sa|na)-[a-z0-9-]+(-[0-9]+)?' | head -n 1)"
-          fi
-
-          if [ -z "$REGION" ]; then
-            echo "无法从 ACR_REGISTRY 推断阿里云地域"
-            exit 1
-          fi
-
-          echo "registry=$REGISTRY" >> "$GITHUB_OUTPUT"
-          echo "region=$REGION" >> "$GITHUB_OUTPUT"
-
-      # 登录阿里云 ACR，AccessKey 从 GitHub Secrets 读取，不在日志中明文展示。
+      # 登录阿里云 ACR 个人版，用户名和密码从 GitHub Secrets 读取，不在日志中明文展示。
       - name: Log in to Alibaba Cloud ACR
-        uses: aliyun/acr-login@v1
+        uses: docker/login-action@v3
         with:
-          login-server: https://${{ steps.acr.outputs.registry }}
-          region-id: ${{ steps.acr.outputs.region }}
-          access-key-id: ${{ secrets.ACR_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.ACR_ACCESS_KEY_SECRET }}
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
       # 构建前端 Docker 镜像，并推送 latest 标签到阿里云 ACR。
       - name: Build and push frontend Docker image
@@ -113,7 +80,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: ${{ steps.acr.outputs.registry }}/${{ secrets.ACR_NAMESPACE }}/easyflow-frontend:latest
+          tags: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/easyflow-frontend:latest
           build-args: |
             VITE_API_URL=http://localhost:4000
           provenance: false
@@ -125,5 +92,5 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ steps.acr.outputs.registry }}/${{ secrets.ACR_NAMESPACE }}/easyflow-backend:latest
+          tags: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/easyflow-backend:latest
           provenance: false
