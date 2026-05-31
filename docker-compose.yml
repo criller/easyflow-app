@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: easyflow-backend
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:4000
+    container_name: easyflow-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
