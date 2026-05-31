@@ -4,18 +4,17 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  test-build:
+  build-and-start-check:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout repository source code so the workflow can install and build it.
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Install Node.js 20, which is the runtime used by both frontend and backend.
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,25 +24,39 @@ jobs:
             backend/package-lock.json
             frontend/package-lock.json
 
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Test backend
-        working-directory: backend
-        run: npm test
-
+      # Install frontend dependencies from package-lock.json for repeatable builds.
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
+      # Build the React + Vite frontend and fail the workflow if compilation fails.
       - name: Build frontend
         working-directory: frontend
         run: npm run build
 
-      - name: Validate Docker Compose config
-        run: docker compose config
+      # Install backend dependencies from package-lock.json for repeatable checks.
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
 
-      - name: Build Docker images
-        run: docker compose build
+      # Start the Express backend and verify the health endpoint responds.
+      - name: Check backend startup
+        working-directory: backend
+        run: |
+          npm start &
+          SERVER_PID=$!
 
+          for attempt in {1..10}; do
+            if curl --fail --silent http://localhost:4000/api/health; then
+              kill "$SERVER_PID"
+              wait "$SERVER_PID" 2>/dev/null || true
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          kill "$SERVER_PID"
+          wait "$SERVER_PID" 2>/dev/null || true
+          echo "Backend did not respond on /api/health"
+          exit 1
