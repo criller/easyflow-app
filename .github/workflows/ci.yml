@@ -65,22 +65,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 构建前端 Docker 镜像，只验证镜像能否成功构建，不推送到镜像仓库。
-      - name: Build frontend Docker image
+      # 登录阿里云 ACR，账号和密码从 GitHub Secrets 读取，不在日志中明文展示。
+      - name: Log in to Alibaba Cloud ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_ACCESS_KEY_ID }}
+          password: ${{ secrets.ACR_ACCESS_KEY_SECRET }}
+
+      # 构建前端 Docker 镜像，并推送 latest 标签到阿里云 ACR。
+      - name: Build and push frontend Docker image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
-          push: false
-          tags: easyflow-frontend:ci
+          push: true
+          tags: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/easyflow-frontend:latest
           build-args: |
             VITE_API_URL=http://localhost:4000
+          provenance: false
 
-      # 构建后端 Docker 镜像，只验证镜像能否成功构建，不推送到镜像仓库。
-      - name: Build backend Docker image
+      # 构建后端 Docker 镜像，并推送 latest 标签到阿里云 ACR。
+      - name: Build and push backend Docker image
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
-          push: false
-          tags: easyflow-backend:ci
+          push: true
+          tags: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/easyflow-backend:latest
+          provenance: false
