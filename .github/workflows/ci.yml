@@ -65,13 +65,33 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 登录阿里云 ACR，账号和密码从 GitHub Secrets 读取，不在日志中明文展示。
+      # 从 ACR_REGISTRY 推断阿里云地域，例如 registry.cn-hangzhou.aliyuncs.com -> cn-hangzhou。
+      - name: Resolve ACR region
+        id: acr
+        shell: bash
+        run: |
+          REGISTRY="${{ secrets.ACR_REGISTRY }}"
+          REGION="$(echo "$REGISTRY" | sed -nE 's/^registry\.([a-z0-9-]+)\.aliyuncs\.com$/\1/p')"
+
+          if [ -z "$REGION" ]; then
+            REGION="$(echo "$REGISTRY" | sed -nE 's/^.*registry\.([a-z0-9-]+)\.cr\.aliyuncs\.com$/\1/p')"
+          fi
+
+          if [ -z "$REGION" ]; then
+            echo "无法从 ACR_REGISTRY 推断阿里云地域"
+            exit 1
+          fi
+
+          echo "region=$REGION" >> "$GITHUB_OUTPUT"
+
+      # 登录阿里云 ACR，AccessKey 从 GitHub Secrets 读取，不在日志中明文展示。
       - name: Log in to Alibaba Cloud ACR
-        uses: docker/login-action@v3
+        uses: aliyun/acr-login@v1
         with:
-          registry: ${{ secrets.ACR_REGISTRY }}
-          username: ${{ secrets.ACR_ACCESS_KEY_ID }}
-          password: ${{ secrets.ACR_ACCESS_KEY_SECRET }}
+          login-server: https://${{ secrets.ACR_REGISTRY }}
+          region-id: ${{ steps.acr.outputs.region }}
+          access-key-id: ${{ secrets.ACR_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.ACR_ACCESS_KEY_SECRET }}
 
       # 构建前端 Docker 镜像，并推送 latest 标签到阿里云 ACR。
       - name: Build and push frontend Docker image
