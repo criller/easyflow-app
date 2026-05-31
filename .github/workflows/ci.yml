@@ -60,3 +60,27 @@ jobs:
           wait "$SERVER_PID" 2>/dev/null || true
           echo "后端未能通过 /api/health 健康检查"
           exit 1
+
+      # 初始化 Docker Buildx，用于在 CI 中执行 Docker 镜像构建。
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 构建前端 Docker 镜像，只验证镜像能否成功构建，不推送到镜像仓库。
+      - name: Build frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: easyflow-frontend:ci
+          build-args: |
+            VITE_API_URL=http://localhost:4000
+
+      # 构建后端 Docker 镜像，只验证镜像能否成功构建，不推送到镜像仓库。
+      - name: Build backend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: easyflow-backend:ci
