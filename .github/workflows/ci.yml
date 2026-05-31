@@ -65,16 +65,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 从 ACR_REGISTRY 推断阿里云地域，例如 registry.cn-hangzhou.aliyuncs.com -> cn-hangzhou。
+      # 规范化 ACR_REGISTRY，并从常见 ACR 域名格式中推断阿里云地域。
       - name: Resolve ACR region
         id: acr
         shell: bash
         run: |
           REGISTRY="${{ secrets.ACR_REGISTRY }}"
-          REGION="$(echo "$REGISTRY" | sed -nE 's/^registry\.([a-z0-9-]+)\.aliyuncs\.com$/\1/p')"
+          REGISTRY="${REGISTRY#https://}"
+          REGISTRY="${REGISTRY#http://}"
+          REGISTRY="${REGISTRY%%/*}"
+
+          REGION="$(echo "$REGISTRY" | sed -nE 's/^registry(-[a-z0-9]+)?\.([a-z0-9-]+)\.aliyuncs\.com$/\2/p')"
 
           if [ -z "$REGION" ]; then
-            REGION="$(echo "$REGISTRY" | sed -nE 's/^.*registry\.([a-z0-9-]+)\.cr\.aliyuncs\.com$/\1/p')"
+            REGION="$(echo "$REGISTRY" | sed -nE 's/^.*-registry(-[a-z0-9]+)?\.([a-z0-9-]+)\.cr\.aliyuncs\.com$/\2/p')"
           fi
 
           if [ -z "$REGION" ]; then
@@ -82,13 +86,14 @@ jobs:
             exit 1
           fi
 
+          echo "registry=$REGISTRY" >> "$GITHUB_OUTPUT"
           echo "region=$REGION" >> "$GITHUB_OUTPUT"
 
       # 登录阿里云 ACR，AccessKey 从 GitHub Secrets 读取，不在日志中明文展示。
       - name: Log in to Alibaba Cloud ACR
         uses: aliyun/acr-login@v1
         with:
-          login-server: https://${{ secrets.ACR_REGISTRY }}
+          login-server: https://${{ steps.acr.outputs.registry }}
           region-id: ${{ steps.acr.outputs.region }}
           access-key-id: ${{ secrets.ACR_ACCESS_KEY_ID }}
           access-key-secret: ${{ secrets.ACR_ACCESS_KEY_SECRET }}
@@ -100,7 +105,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/easyflow-frontend:latest
+          tags: ${{ steps.acr.outputs.registry }}/${{ secrets.ACR_NAMESPACE }}/easyflow-frontend:latest
           build-args: |
             VITE_API_URL=http://localhost:4000
           provenance: false
@@ -112,5 +117,5 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/easyflow-backend:latest
+          tags: ${{ steps.acr.outputs.registry }}/${{ secrets.ACR_NAMESPACE }}/easyflow-backend:latest
           provenance: false
