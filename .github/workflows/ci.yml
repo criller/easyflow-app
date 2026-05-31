@@ -82,6 +82,14 @@ jobs:
           fi
 
           if [ -z "$REGION" ]; then
+            REGION="$(echo "$REGISTRY" | sed -nE 's/^.*\.([a-z0-9-]+)\.personal\.cr\.aliyuncs\.com$/\1/p')"
+          fi
+
+          if [ -z "$REGION" ]; then
+            REGION="$(echo "$REGISTRY" | grep -oE '(cn|us|eu|ap|me|sa|na)-[a-z0-9-]+(-[0-9]+)?' | head -n 1)"
+          fi
+
+          if [ -z "$REGION" ]; then
             echo "无法从 ACR_REGISTRY 推断阿里云地域"
             exit 1
           fi
