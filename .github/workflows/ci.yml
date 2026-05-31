@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repository source code so the workflow can install and build it.
+      # 拉取仓库代码，后续步骤会基于这份代码安装依赖和执行构建。
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install Node.js 20, which is the runtime used by both frontend and backend.
+      # 安装 Node.js 20，前端和后端都使用这个 Node.js 版本运行。
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -24,22 +24,22 @@ jobs:
             backend/package-lock.json
             frontend/package-lock.json
 
-      # Install frontend dependencies from package-lock.json for repeatable builds.
+      # 安装前端依赖，使用 package-lock.json 保证依赖版本可重复。
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      # Build the React + Vite frontend and fail the workflow if compilation fails.
+      # 构建 React + Vite 前端；如果编译失败，Workflow 会直接失败。
       - name: Build frontend
         working-directory: frontend
         run: npm run build
 
-      # Install backend dependencies from package-lock.json for repeatable checks.
+      # 安装后端依赖，使用 package-lock.json 保证依赖版本可重复。
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
-      # Start the Express backend and verify the health endpoint responds.
+      # 启动 Express 后端，并检查健康检查接口是否能正常响应。
       - name: Check backend startup
         working-directory: backend
         run: |
@@ -58,5 +58,5 @@ jobs:
 
           kill "$SERVER_PID"
           wait "$SERVER_PID" 2>/dev/null || true
-          echo "Backend did not respond on /api/health"
+          echo "后端未能通过 /api/health 健康检查"
           exit 1

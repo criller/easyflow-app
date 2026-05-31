@@ -1,5 +1,7 @@
 # EasyFlow App
 
+中文文档：[README.zh-CN.md](./README.zh-CN.md)
+
 EasyFlow App is a minimal full-stack project with a React + Vite frontend and a Node.js + Express backend.
 
 ## Local Startup
